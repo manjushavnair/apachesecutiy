@@ -126,7 +126,7 @@ sysctl_ipv6_checklist = {
 
 # Internal stuff
 def dprint(lvl, msg):
-  if (lvl <= DEBUG): # FIX. Was:  'if (lvl > DEBUG):'. Changed by @asintsov. Reason: deafult should be non debug mode.
+  if (lvl <= DEBUG): # FIX. Was:  'if (lvl > DEBUG):'. Changed by  Reason: deafult should be non debug mode.
     print (msg);
 
 ##### generic class
