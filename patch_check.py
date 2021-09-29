@@ -1,9 +1,14 @@
 #!/usr/bin/python
 from datetime import date, datetime, timedelta
 from time import mktime
+import sys
+import urllib.request
+
+from urllib.request import urlopen
+
 from optparse import OptionParser
-from urllib2 import urlopen, HTTPError, URLError
-import gzip, mailbox, email, os, sys, re, commands, time, errno, platform
+from urllib.error  import   HTTPError, URLError
+import gzip, mailbox, email, os, sys, re, subprocess, time, errno, platform
 
 # Allowed CentOS releases and their release dates
 # Release dates are used to speed up downloads 
@@ -35,7 +40,7 @@ def download_updates(os_ver):
     
     try:
         FILE_OUT = open(_out_filename,"w")
-    except IOError, (ex_no,ex_str):
+    except IOError as (ex_no,ex_str):
         fatal_error("IO Error %(num)s. %(str)s. Unable to write to output file." % {'num':ex_no, 'msg':ex_str})
     
     for year in range(_begin_year,date.today().year+1):
@@ -67,12 +72,12 @@ def download_updates(os_ver):
                 _file_content = _FILE_GZ.read()
                 _FILE_TXT = open("/tmp/" + current_date.strftime("%Y-%B.txt"), 'w')
                 _FILE_TXT.writelines(_file_content)
-            except HTTPError, err:
+            except HTTPError as err:
                 if (err.getcode() == 404):
                     print (str(mon)+"(NOFILE_GOT_HTTP_404)"),
                 else:
                     fatal_error("Unknown HTTPError occurred: " + err.strerror)
-            except IOError, err:
+            except IOError as  err:
                 if "CRC check failed" in str(err):
                     # Sometimes proxy server keeps a partial or corrupt file in cache, and sends that to us.
                     # Dont know how to force the proxy to re-download the file from remote host.
@@ -85,21 +90,21 @@ def download_updates(os_ver):
 
 
             except:
-                print "Unknown error occurred." 
-                print sys.exc_info()[0]
+                print ("Unknown error occurred.")
+                print (sys.exc_info()[0])
                 sys.exit(1)
             
             if (mon == 12) or ((year == date.today().year) and (mon == date.today().month)):
-                print "Done." 
+                print ("Done.")
             sys.stdout.flush()
             
             _mbox_filename = "/tmp/" + current_date.strftime("%Y-%B.txt")
             try:
                 mb = mailbox.mbox(_mbox_filename)
-            except AttributeError:
+            except (AttributeError):
                 mb = mailbox.PortableUnixMailbox(file(_mbox_filename),factory=email.message_from_file)
-            except IOError, e:
-                print "ERROR"+ e
+            except (IOError, e):
+                print ("ERROR"+ e)
             # Parse each message in gunzipped mbox files
             for message in mb:
                 # Skip non-CESA messages and messages with empty subject
@@ -149,7 +154,7 @@ def download_updates(os_ver):
             try:
                 os.remove("/tmp/" + filename)
                 os.remove("/tmp/" + current_date.strftime("%Y-%B.txt"))
-            except OSError, e:
+            except OSError as e:
                 if (e.errno != errno.ENOENT):
                     # This is not 'No such file or directory error'
                     fatal_error( "Unknown error occurred while deleting temp files: " + e.strerror)
@@ -163,7 +168,7 @@ def download_updates(os_ver):
 def check_options():
     # Cant have both -c and -u at the same time
     if options.centos_version and options.input_patchlist:
-        print "Error: Cant have both -c and -u options."
+        print ("Error: Cant have both -c and -u options.")
         arg_parser.print_help()
         sys.exit(1)
     
@@ -237,7 +242,7 @@ def compare_versions(installed_ver, patch_ver):
                 inst_sub_ver = "." + int(sub_ver[0])
                 patch_sub_ver = "." + int(sub_ver[1])
                 
-        except ValueError, err:
+        except (ValueError, err):
             continue
                 
         if inst_sub_ver > patch_sub_ver:
@@ -266,12 +271,12 @@ def check_patches():
     
     # yum sometimes adds newlines in its output which messes up this parsing. So we try repoquery first.    
     cmd = "repoquery -C --installed --queryformat=\"%{name}.%{arch}|%{version}-%{release} %{version}-%{release}\" " + pkg_all    
-    (status,out) = commands.getstatusoutput(cmd)
+    (status,out) = subprocess.getstatusoutput(cmd)
     if (status != 0):
         # repoquery is present in yum-utils package, and may not be installed by default on CentOS 5.
         # if installed in CentOS 5.x, it may not have --installed option.
         cmd = "yum -C list installed " + pkg_all
-        (status,out) = commands.getstatusoutput(cmd)
+        (status,out) = subprocess.getstatusoutput(cmd)
         
     if (status != 0):
         FILE_IN.close()
@@ -312,18 +317,18 @@ def check_patches():
                 strmsg = "Package: " + pkg_name + " Installed: " + current_ver 
                 strmsg += " Available Security Update: " + patch[0]
                 strmsg += " Risk: " + patch[1] + " URL: " + patch[2].rstrip()
-                print strmsg
+                print (strmsg)
                 pkgs_to_update += " " + pkg_name
             
     if pkgs_to_update:
-        print "\n---\nTo install only these packages and avoid installing other updates, run:"
-        print yum_cmd + pkgs_to_update
+        print ("\n---\nTo install only these packages and avoid installing other updates, run:")
+        print (yum_cmd + pkgs_to_update)
         
         if "kernel" in pkgs_to_update:
             _msg = "\n---\nNOTE: The script reports missing patches on other installed kernels, " 
-            print _msg + "even if the presently running kernel is fully patched. Uninstall unwanted kernel packages."
+            print (_msg + "even if the presently running kernel is fully patched. Uninstall unwanted kernel packages.")
     else:
-        print "No pending security updates were found." 
+        print ("No pending security updates were found." )
 
 def check_internet_connectivity():
     """Exits program if http://lists.centos.org is not reachable."""
@@ -345,10 +350,10 @@ def check_amiversion():
             if (_diff.days > AMI_MAX_LIFETIME ):
                 _msg = "WARNING:  AMI used in this system is " + str(_diff.days) + " days old. "
                 _msg += "You should switch to a latest AMI as soon as possible."
-                print _msg + "\n---"
+                print (_msg + "\n---")
 
 def fatal_error(msg):
-    print msg
+    print (msg)
     sys.exit(1)
     
 if __name__ == '__main__':
@@ -375,11 +380,11 @@ if __name__ == '__main__':
         
         download_updates(int(platform.dist()[1].split(".")[0]))
         
-        print "---"
+        print ("---")
         
         try:
             FILE_IN = open(_out_filename,'r')
-        except IOError, (ex_no, ex_str):
+        except IOError as  (ex_no ,ex_str):
             fatal_error ("IO Error %(num)s: %(msg)s. Unable to read input file." % {'num':ex_no, 'msg':ex_str})
 
         check_patches()
@@ -393,13 +398,13 @@ if __name__ == '__main__':
         _out_filename = "patchlist-centos" + str(options.centos_version) + date.today().strftime("-%Y%b%d.list")
             
         download_updates(options.centos_version)
-        print "Finished downloading updates. Patchlist file " + _out_filename + " is saved to current directory."
+        print ("Finished downloading updates. Patchlist file " + _out_filename + " is saved to current directory.")
         
     
     if options.input_patchlist:
         try:
             FILE_IN = open(options.input_patchlist,'r')
-        except IOError, err:
+        except (IOError, err):
             fatal_error("IO Error: %(msg)s. Unable to read input file." % {'msg':ex_str} )
             
         check_patches()
@@ -409,5 +414,5 @@ if __name__ == '__main__':
     footer_notes += "If you have packages from 3rd party repos like rpmforge or epel, or have installed packages using .tar.gz, compiled from source, or "
     footer_notes += "installed an .rpm downloaded from non-CentOS repo, then this script will not find missing patches."
     
-    print "---\n" + footer_notes + "\n---"
+    print ("---\n" + footer_notes + "\n---")
     

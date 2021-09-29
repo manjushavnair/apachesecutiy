@@ -1,5 +1,9 @@
 #!/usr/bin/python
-import commands, socket, sys, os, re, inspect, ConfigParser
+import configparser
+import threading
+
+
+import subprocess, socket, sys, os, re, inspect
 from optparse import OptionParser
 
 def status_print(loglevel,text, ref="NA"):
@@ -57,7 +61,7 @@ class HTTPDConf:
         """Check for core modules that are compiled into the httpd binary."""
         compiledin_modules = ("core.c","prefork.c","http_core.c","mod_so.c")
     
-        for item in commands.getoutput(self.binary + " -l").splitlines()[1:]:
+        for item in subprocess.getoutput(self.binary + " -l").splitlines()[1:]:
             if item.strip() not in compiledin_modules:
                 status_print(risk, "Module " + item.strip() + " is a compiled-in module for Apache binary " + self.binary +
                              ", but is not usually compiled in. (core, prefork, http_core and mod_so are default compiled-in modules).") 
@@ -170,7 +174,7 @@ class HTTPDConf:
     
     def check_httpdinstall(self, risk):
         """Checks apache installation options for security issues."""
-        (status,out) = commands.getstatusoutput("yum -C list installed httpd")
+        (status,out) = subprocess.getstatusoutput("yum -C list installed httpd")
         if status != 0:
             status_print(risk,"HTTPD binary " + self.binary + " exists, but httpd package is not installed via RPM/yum.")
         
@@ -295,7 +299,7 @@ dont_run=[]
 custom_risks=[]
 
 if os.path.isfile("./hardening-baseline.cfg"):
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser;
     config.read("./hardening-baseline.cfg")    
     dont_run = [item[0] for item in config.items('ApacheHTTPD') if 'false' in item[1] ]
     custom_risks = [item for item in config.items('ApacheHTTPD') if 'false' not in item[1] ]

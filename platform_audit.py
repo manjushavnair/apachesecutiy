@@ -1,5 +1,15 @@
 #!/usr/bin/python2
 import sys,os
+
+import sys
+import urllib.request
+from urllib.error import HTTPError,URLError
+
+from urllib.request import urlopen
+import configparser as ConfigParser
+
+from optparse import OptionParser
+from urllib.error  import   HTTPError, URLError
 import string
 import getopt
 import spwd,pwd
@@ -11,14 +21,13 @@ import stat
 import io
 import yum
 from xml.dom.minidom import parse, parseString
-import ConfigParser
 from pwd import getpwuid
 from grp import getgrgid
 import stat 
 from datetime import date, datetime, timedelta
 from time import mktime
-from urllib2 import urlopen, HTTPError, URLError, ProxyHandler, build_opener, install_opener
-import gzip, mailbox, email, os, sys, re, commands, time, errno, platform
+from urllib.request import urlopen, ProxyHandler, build_opener, install_opener
+import gzip, mailbox, email, os, sys, re, subprocess, time, errno, platform
 # Ignore deprecation warning for use with popen2
 import warnings
 with warnings.catch_warnings():
@@ -118,7 +127,7 @@ sysctl_ipv6_checklist = {
 # Internal stuff
 def dprint(lvl, msg):
   if (lvl <= DEBUG): # FIX. Was:  'if (lvl > DEBUG):'. Changed by @asintsov. Reason: deafult should be non debug mode.
-    print msg;
+    print (msg);
 
 ##### generic class
 class GenericCheck:
@@ -154,29 +163,28 @@ class GenericCheck:
     if self.isrunnable():
       self.print_report(type);
     else:
-      print self.__class__.__name__+" DISABLED!"
+      print (self.__class__.__name__+" DISABLED!")
 
   def print_report(self,type='short'):
     dprint (1, "GENERIC print_report");
     if type != 'short':
-     print self.__class__.__name__+" Report:"
+     print (self.__class__.__name__+" Report:")
      if len(self.alerts) > 0:
       for alert in self.alerts:
-        print alert
+        print (alert)
      else:
-       print "No Issues Detected"
+       print ("No Issues Detected")
     else:
       if len(self.alerts) > 0:
-        print self.__class__.__name__+" : ALERT "+str(len(self.alerts))+" ISSUES DETECTED";
+        print (self.__class__.__name__+" : ALERT "+str(len(self.alerts))+" ISSUES DETECTED");
       else:
-        print self.__class__.__name__+" : No ISSUES";
+        print (self.__class__.__name__+" : No ISSUES");
 
 ##################################################################
 #                          CHECKS                                #
 ##################################################################
 # 
 
-# Patch managment (by Muthukrishnan Karthik)
 
 # Allowed CentOS releases and their release dates
 # Release dates are used to speed up downloads 
@@ -237,7 +245,7 @@ class PatchCheck(GenericCheck):
 			
 		try:
 			FILE_IN = open(_out_filename,'r')
-		except IOError, (ex_no, ex_str):
+		except IOError as (ex_no, ex_str):
 			dprint(1,"IO Error %(num)s: %(msg)s. Unable to read input file." % {'num':ex_no, 'msg':ex_str})
 			return
 
@@ -261,7 +269,7 @@ class PatchCheck(GenericCheck):
 		
 		try:
 			FILE_OUT = open(_out_filename,"w")
-		except IOError, (ex_no,ex_str):
+		except IOError as (ex_no,ex_str):
 			self.fatal_error("IO Error %(num)s. %(str)s. Unable to write to output file." % {'num':ex_no, 'msg':ex_str})
 		
 		for year in range(_begin_year,date.today().year+1):
@@ -293,12 +301,12 @@ class PatchCheck(GenericCheck):
 					_file_content = _FILE_GZ.read()
 					_FILE_TXT = open("/tmp/" + current_date.strftime("%Y-%B.txt"), 'w')
 					_FILE_TXT.writelines(_file_content)
-				except HTTPError, err:
+				except HTTPError as err:
 					if (err.getcode() == 404):
 						dprint(2, (str(mon)+"(NOFILE_GOT_HTTP_404)")),
 					else:
 						self.fatal_error("Unknown HTTPError occurred: " + err.strerror)
-				except IOError, err:
+				except IOError as err:
 					if "CRC check failed" in str(err):
 						# Sometimes proxy server keeps a partial or corrupt file in cache, and sends that to us.
 						# Dont know how to force the proxy to re-download the file from remote host.
@@ -324,7 +332,7 @@ class PatchCheck(GenericCheck):
 					mb = mailbox.mbox(_mbox_filename)
 				except AttributeError:
 					mb = mailbox.PortableUnixMailbox(file(_mbox_filename),factory=email.message_from_file)
-				except IOError, e:
+				except IOError as e:
 					dprint(2, "ERROR"+ e)
 				# Parse each message in gunzipped mbox files
 				for message in mb:
@@ -375,7 +383,7 @@ class PatchCheck(GenericCheck):
 				try:
 					os.remove("/tmp/" + filename)
 					os.remove("/tmp/" + current_date.strftime("%Y-%B.txt"))
-				except OSError, e:
+				except OSError as e:
 					if (e.errno != errno.ENOENT):
 						# This is not 'No such file or directory error'
 						self.fatal_error( "Unknown error occurred while deleting temp files: " + e.strerror)
@@ -425,7 +433,7 @@ class PatchCheck(GenericCheck):
 					inst_sub_ver = "." + int(sub_ver[0])
 					patch_sub_ver = "." + int(sub_ver[1])
 					
-			except ValueError, err:
+			except ValueError as err:
 				continue
 					
 			if inst_sub_ver > patch_sub_ver:
@@ -454,12 +462,12 @@ class PatchCheck(GenericCheck):
 		
 		# yum sometimes adds newlines in its output which messes up this parsing. So we try repoquery first.    
 		cmd = "repoquery -C --installed --queryformat=\"%{name}.%{arch}|%{version}-%{release} %{version}-%{release}\" " + pkg_all    
-		(status,out) = commands.getstatusoutput(cmd)
+		(status,out) = subprocess.getstatusoutput(cmd)
 		if (status != 0):
 			# repoquery is present in yum-utils package, and may not be installed by default on CentOS 5.
 			# if installed in CentOS 5.x, it may not have --installed option.
 			cmd = "yum -C list installed " + pkg_all
-			(status,out) = commands.getstatusoutput(cmd)
+			(status,out) = subprocess.getstatusoutput(cmd)
 			
 		if (status != 0):
 			FILE_IN.close()
@@ -1561,8 +1569,8 @@ class TCPIPHardeningConfigCheck(GenericCheck):
     try:
       self.run=1;
       self.syscltFile = open(self.syscltFileName, 'r')
-    except Exception,  e:
-      print "\tError opening " + self.syscltFileName + str(e)
+    except Exception as  e:
+      print ("\tError opening " + self.syscltFileName + str(e))
       self.run=0;
 
   def TcpIPChecks(self,sysctl_checklist):
@@ -1584,8 +1592,8 @@ class TCPIPHardeningConfigCheck(GenericCheck):
         memoryCheckFilename = "/proc/sys/" + check.replace('.','/')
         try:
             memoryCheckFile = open(memoryCheckFilename,'r')
-        except Exception,  e:
-            print "\tError opening file " + memoryCheckFilename
+        except Exception as  e:
+            print ("\tError opening file " + memoryCheckFilename)
             print
             continue
 
@@ -1640,7 +1648,7 @@ class FilePermissionsCheck(GenericCheck):
 		self.run=1;
 		try:
 			self.run=1;
-		except Exception,  e:
+		except Exception as e:
 			self.run=0;
 	
 	def walktree(self,baseDir):
@@ -1651,7 +1659,7 @@ class FilePermissionsCheck(GenericCheck):
 				fileStat = os.stat(pathName)
 				mode = fileStat.st_mode
 				modePerm = stat.S_IMODE(mode)
-			except Exception,e:
+			except Exception as e:
 				dprint(2, "Error " + str(e))
 				continue
 			if stat.S_ISREG(mode):
@@ -1773,9 +1781,9 @@ class PHPConfigCheck(GenericCheck):
 				iniFileHandle.close()
 			except:
 				dprint (2, "\tError opening" + self.iniFilename + str(e))
-				raise excpetion
+				raise exception
 			self.run=1;
-		except Exception,  e:
+		except Exception as  e:
 			dprint(2, "Error : " + str(e))
 			dprint (2,"Can not locate php.ini ....")
         		dprint(2, "PHP Configuration Assessment is NOT complete!")
@@ -1793,7 +1801,7 @@ class PHPConfigCheck(GenericCheck):
 		for k,(m,v) in self.phpSectionCheckList.items():
 			try:
 				check = phpIni.get("PHP",k)
-			except Exception, e:
+			except Exception as e:
 	    			notFound = 1
 			if (self.phpSectionCheckList[k][v] != check) or (notFound == 1):
 				self.warningCount+=1	
@@ -1880,7 +1888,7 @@ def checkOpts():
 
 def main():
 	if(os.geteuid() != 0):
-	  print "!WARNING! Some tests require super user privileges, so will be DISABLED in normal user mode !WARNING!";
+	  print ("!WARNING! Some tests require super user privileges, so will be DISABLED in normal user mode !WARNING!");
 
 	# Getting user input
 	checkOpts()
@@ -1903,9 +1911,9 @@ def main():
 		checks.append(PHPConfigCheck());
 		
 	if LISTCHECKS:
-           print 'List of checks:';
+           print ('List of checks:');
            for check in checks:
-               print check.__class__.__name__;
+               print (check.__class__.__name__);
            sys.exit();
 
 	# Execute checks actions
