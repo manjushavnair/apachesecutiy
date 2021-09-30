@@ -301,7 +301,7 @@ custom_risks=[]
 if os.path.isfile("./hardening-baseline.cfg"):
     config = configparser.RawConfigParser;
     print("here")
-    config.read("./hardening-baseline.cfg")    
+    config.read("./shardening-baseline.cfg")    
     dont_run = [item[0] for item in config.items('ApacheHTTPD') if 'false' in item[1] ]
     custom_risks = [item for item in config.items('ApacheHTTPD') if 'false' not in item[1] ]
 
